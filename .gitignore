@@ -35,12 +35,14 @@
 *.i*86
 *.x86_64
 *.hex
+*.gba
 
 # Debug files
 *.dSYM/
 *.su
 *.idb
 *.pdb
+*.sav
 
 # Kernel Module Compile Results
 *.mod*
