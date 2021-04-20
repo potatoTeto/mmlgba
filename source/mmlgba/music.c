@@ -1,5 +1,6 @@
 #include "mmlgba.h"
 #include <string.h>
+#include <gba_console.h>
 #include "music.h"
 #include "notes.h"
 #include "freq.h"
@@ -7,6 +8,7 @@
 #include "vib.h"
 #include "directsound.h"
 #include "../data/samples/smpPiano.h"
+#include "../data/samples/bigKick.h"
 
 #define MAX_REPEATS 4
 
@@ -17,10 +19,10 @@ UBYTE mus_enabled1, mus_enabled4;
 UBYTE mus_done1, mus_done2, mus_done3, mus_done4;
 UWORD mus_freq1, mus_freq2, mus_freq3;
 UBYTE mus_freq4;
-UBYTE* mus_data1, * mus_data2, * mus_data3, * mus_data4;
-UBYTE* mus_data1_bak, * mus_data2_bak, * mus_data3_bak, * mus_data4_bak;
+UBYTE* mus_data1, * mus_data2, * mus_data3, * mus_data4, * ds_mus_data[SND_MAX_DS_CHANNELS];
+UBYTE* mus_data1_bak, * mus_data2_bak, * mus_data3_bak, * mus_data4_bak, * ds_mus_data_bak[SND_MAX_DS_CHANNELS];
 UBYTE* mus_wave;
-UBYTE* mus_loop1, * mus_loop2, * mus_loop3, * mus_loop4;
+UBYTE* mus_loop1, * mus_loop2, * mus_loop3, * mus_loop4, * ds_mus_loop[SND_MAX_DS_CHANNELS];
 UBYTE mus_octave1, mus_octave2, mus_octave3, mus_octave4;
 UBYTE mus_length1, mus_length2, mus_length3, mus_length4;
 UBYTE mus_volume1, mus_volume2, mus_volume3, mus_volume4;
@@ -52,13 +54,13 @@ UWORD getTMAValue(UBYTE value)
 }
 
 void mus_init(UBYTE* song_data) {
-	UBYTE i;
+	UBYTE i, j;
 
 	/*NR52_REG = 0x80U; // Enable sound
 	NR51_REG = 0xFFU;
 	NR50_REG = 0xFFU;*/
 
-	// GBA Iinit
+	// GBA Init
 	SND_STAT = SNDSTAT_ENABLE |
 		SNDSTAT_SQR1 | SNDSTAT_SQR2 |
 		SNDSTAT_TRI | SNDSTAT_NOISE;
@@ -88,7 +90,8 @@ void mus_init(UBYTE* song_data) {
 	mus_data2 = mus_loop2 = song_data + ((UWORD*)song_data)[1];
 	mus_data3 = mus_loop3 = song_data + ((UWORD*)song_data)[2];
 	mus_data4 = mus_loop4 = song_data + ((UWORD*)song_data)[3];
-	mus_wave = song_data + ((UWORD*)song_data)[4];
+	mus_wave = song_data + ((UWORD*)song_data)[4 + SND_MAX_DS_CHANNELS];
+
 
 	mus_enabled1 = mus_enabled4 = 1U;
 	mus_done1 = mus_done2 = mus_done3 = mus_done4 = 0U;
@@ -111,6 +114,29 @@ void mus_init(UBYTE* song_data) {
 		mus_repeats2[i] = 0U;
 		mus_repeats3[i] = 0U;
 		mus_repeats4[i] = 0U;
+	}
+
+	// Initialize all the DirectSound pseudo-channels
+	for (i = 0U; i != SND_MAX_DS_CHANNELS; ++i) {
+		ds_mus_data[i] = ds_mus_loop[i] = song_data + ((UWORD*)song_data)[4 + i];
+		sndChannel[i].mus_enabled = 1U;
+		sndChannel[i].mus_done = 0U;
+		sndChannel[i].mus_wait = 0U;
+		sndChannel[i].mus_octave = 4U;
+		sndChannel[i].mus_length = 48U;
+		sndChannel[i].mus_volume = 0xF0U;
+		sndChannel[i].mus_env = 3U;
+		sndChannel[i].mus_rep_depth = 255U;
+		sndChannel[i].mus_slide = 0U;
+		sndChannel[i].mus_vib_speed = 0U;
+		sndChannel[i].mus_po = 128U;
+		sndChannel[i].mus_pan = 0x11U;
+		sndChannel[i].mus_macro = 0U;
+
+		for (j = 0U; j != MAX_REPEATS; ++j) {
+		  sndChannel[i].mus_repeats[j] = 0U;
+		}
+		dirSndNoteOff(i);
 	}
 }
 
@@ -154,6 +180,53 @@ void mus_restore4() {
 	NR44_REG = 0x80U;
 }
 
+void dirSndNoteOff(s8 channel) {
+		// Kill the sound (or initialize it)
+		sndChannel[channel].sampleData = 0;
+		// set up channel vars
+		sndChannel[channel].samplePos = 0;
+}
+
+void dirSndNoteOn(s8 channel) {
+		// Play at 2* frequency. This is one octave above normal
+		sndChannel[channel].sampleInc = (sampleBitRate*2<<12)/streamBitRate;
+
+		// Same
+		sndChannel[channel].sampleVol = 64;
+
+		// Same
+		sndChannel[channel].sampleLength = 10516<<12;
+
+		// This one will actually loop. Here, the loop start
+		// position (which I checked in the MOD I ripped the
+		// sample from) is 9176. So, we take length-loopStart
+		// and convert to 12-bit fixed-point like everything else.
+		sndChannel[channel].sampleLoopLength = (10514-9176)<<12;
+
+		// Same
+		sndChannel[channel].sampleData = (s8*) bigKick;
+}
+
+void dirSndStep(s8 channel) {
+	// Play at 2* frequency. This is one octave above normal
+	sndChannel[channel].sampleInc = (sampleBitRate*2<<12)/streamBitRate;
+
+	// Same
+	sndChannel[channel].sampleVol = 1;
+
+	// Same
+	sndChannel[channel].sampleLength = 10516<<12;
+
+	// This one will actually loop. Here, the loop start
+	// position (which I checked in the MOD I ripped the
+	// sample from) is 9176. So, we take length-loopStart
+	// and convert to 12-bit fixed-point like everything else.
+	sndChannel[channel].sampleLoopLength = (10514-9176)<<12;
+
+	// Same
+	sndChannel[channel].sampleData = (s8*) bigKick;
+}
+
 UBYTE mus_is_done() {
 	return mus_paused || (mus_done1 && mus_done2 && mus_done3 && mus_done4);
 }
@@ -161,39 +234,11 @@ UBYTE mus_is_done() {
 void musicSequencerUpdate() {
 	if (mus_paused) return;
 
+	dirSndMusChannelsUpdate();
 	gbPulse1Update();
 	gbPulse2Update();
 	gbWaveUpdate();
 	gbNoiseUpdate();
-
-
-		if (!initNote) {
-			// make sure the channel is disabled first
-			sndChannel[1].data = 0;
-			// set up channel vars
-			sndChannel[1].pos = 0;
-			initNote = true;
-		} else {
-
-			// Play at 2* frequency. This is one octave above normal
-			sndChannel[1].inc = (sampleBitRate*2<<12)/streamBitRate;
-
-			// Same
-			sndChannel[1].vol = 64;
-
-			// Same
-			sndChannel[1].length = 10516<<12;
-
-			// This one will actually loop. Here, the loop start
-			// position (which I checked in the MOD I ripped the
-			// sample from) is 9176. So, we take length-loopStart
-			// and convert to 12-bit fixed-point like everything else.
-			sndChannel[1].loopLength = (10514-9176)<<12;
-
-			// Same
-			sndChannel[1].data = (s8*) smpPiano;
-		}
-
 }
 
 void gbPulse1Update() {
@@ -362,7 +407,7 @@ void gbPulse1Update() {
 		case T_MACRO:
 			note = *mus_data1++;
 			mus_data1_bak = mus_data1;
-			mus_data1 = mus_song + ((UWORD*)mus_song)[5 + note];
+			mus_data1 = mus_song + ((UWORD*)mus_song)[5 + SND_MAX_DS_CHANNELS + note];
 			mus_macro1 = 1U;
 			break;
 		case T_EOF:
@@ -539,7 +584,7 @@ void gbPulse2Update() {
 		case T_MACRO:
 			note = *mus_data2++;
 			mus_data2_bak = mus_data2;
-			mus_data2 = mus_song + ((UWORD*)mus_song)[5 + note];
+			mus_data2 = mus_song + ((UWORD*)mus_song)[5 + SND_MAX_DS_CHANNELS + note];
 			mus_macro2 = 1U;
 			break;
 		case T_EOF:
@@ -663,7 +708,7 @@ void gbWaveUpdate() {
 		case T_MACRO:
 			note = *mus_data3++;
 			mus_data3_bak = mus_data3;
-			mus_data3 = mus_song + ((UWORD*)mus_song)[5 + note];
+			mus_data3 = mus_song + ((UWORD*)mus_song)[5 + SND_MAX_DS_CHANNELS + note];
 			mus_macro3 = 1U;
 			break;
 		case T_EOF:
@@ -812,7 +857,7 @@ void gbNoiseUpdate() {
 		case T_MACRO:
 			note = *mus_data4++;
 			mus_data4_bak = mus_data4;
-			mus_data4 = mus_song + ((UWORD*)mus_song)[5 + note];
+			mus_data4 = mus_song + ((UWORD*)mus_song)[5 + SND_MAX_DS_CHANNELS + note];
 			mus_macro4 = 1U;
 			break;
 		case T_EOF:
@@ -830,5 +875,216 @@ void gbNoiseUpdate() {
 			}
 			break;
 		}
+	}
+}
+
+
+void dirSndMusChannelsUpdate() {
+	// Initialize all the DirectSound pseudo-channels
+	UBYTE i;
+	for (i = 0U; i != 1U; ++i) {//SND_MAX_DS_CHANNELS; ++i) {
+		UBYTE note;
+		UWORD tmp_freq;
+		if (sndChannel[i].mus_slide) {
+			if (sndChannel[i].mus_target > sndChannel[i].mus_freq) {
+				sndChannel[i].mus_freq += sndChannel[i].mus_slide;
+				if (sndChannel[i].mus_freq > sndChannel[i].mus_target) {
+					sndChannel[i].mus_freq = sndChannel[i].mus_target;
+				}
+			}
+			else if (sndChannel[i].mus_target < sndChannel[i].mus_freq) {
+				sndChannel[i].mus_freq -= sndChannel[i].mus_slide;
+				if (sndChannel[i].mus_freq < sndChannel[i].mus_target) {
+					sndChannel[i].mus_freq = sndChannel[i].mus_target;
+				}
+			}
+			if (sndChannel[i].mus_enabled) {
+				//NR13_REG = (UBYTE)sndChannel[i].mus_freq;
+				//NR14_REG = sndChannel[i].mus_freq >> 8;
+			}
+		}
+
+		if (sndChannel[i].mus_vib_delay) {
+			sndChannel[i].mus_vib_delay--;
+		}
+		else if (sndChannel[i].mus_vib_speed) {
+			sndChannel[i].mus_vib_pos = (sndChannel[i].mus_vib_pos + sndChannel[i].mus_vib_speed) & 63U;
+			tmp_freq = sndChannel[i].mus_freq - *sndChannel[i].mus_vib_table + sndChannel[i].mus_vib_table[sndChannel[i].mus_vib_pos];
+
+			if (sndChannel[i].mus_enabled) {
+				//NR13_REG = (UBYTE)tmp_freq;
+				//NR14_REG = tmp_freq >> 8;
+			}
+		}
+
+
+
+		if (sndChannel[i].mus_wait) {
+			sndChannel[i].mus_wait--;
+			if (sndChannel[i].mus_wait) return;
+		}
+
+		while (1U) {
+			note = *ds_mus_data[i]++;
+			if (note >= MUS_FIRST_NOTE) {
+				if (note & MUS_HAS_LENGTH) {
+					note ^= MUS_HAS_LENGTH;
+					sndChannel[i].mus_wait = *ds_mus_data[i]++;
+				}
+				else {
+					sndChannel[i].mus_wait = sndChannel[i].mus_length;
+				}
+				if (note == T_WAIT) {
+					return;
+				}
+				else if (note == T_REST) { // kill the sound
+					sndChannel[i].mus_freq = 0U;
+					if (sndChannel[i].mus_enabled) dirSndNoteOff(i);//NR12_REG = 0U; // kill the adsr too
+				}
+				else { ///
+					tmp_freq = freq[(sndChannel[i].mus_octave << 4) + note - MUS_FIRST_NOTE] + sndChannel[i].mus_po - 128U;
+
+					if (sndChannel[i].mus_slide) {
+						sndChannel[i].mus_target = tmp_freq;
+					}
+					else {
+						sndChannel[i].mus_freq = tmp_freq;
+					}
+
+					if (sndChannel[i].mus_enabled) dirSndNoteOn(i); //NR12_REG = sndChannel[i].mus_volume | sndChannel[i].mus_env; perhaps ADSR could be defined here too?
+				}
+				if (sndChannel[i].mus_enabled) {
+					/*
+					// Decay the sound over time
+					if (sndChannel[i].mus_enabled == 2U) {
+						sndChannel[i].mus_enabled--;
+						NR12_REG = sndChannel[i].mus_volume | sndChannel[i].mus_env;
+					}
+					*/
+
+					// Set the sound frequency
+					//NR13_REG = (UBYTE)sndChannel[i].mus_freq;
+					//NR14_REG = (sndChannel[i].mus_freq >> 8) | 0x80U;
+				}
+				return;
+			}
+			switch (note) {
+			case T_LENGTH:
+				sndChannel[i].mus_length = *ds_mus_data[i]++;
+				break;
+			case T_OCTAVE:
+				sndChannel[i].mus_octave = *ds_mus_data[i]++;
+				break;
+			case T_OCT_UP:
+				sndChannel[i].mus_octave++;
+				break;
+			case T_OCT_DOWN:
+				sndChannel[i].mus_octave--;
+				break;
+			case T_VOL:
+				sndChannel[i].mus_volume = ((*ds_mus_data[i]++) * 64) / 16;
+				//if (sndChannel[i].mus_enabled) NR12_REG = sndChannel[i].mus_volume | sndChannel[i].mus_env; // Step the ADSR envelope here too
+				break;
+			case T_ENV:
+				// Update the ADSR
+				//sndChannel[i].mus_env = *ds_mus_data[i]++;
+				//if (sndChannel[i].mus_enabled) NR12_REG = sndChannel[i].mus_volume | sndChannel[i].mus_env; // Step the ADSR envelope here too
+				break;
+			case T_WAVEDUTY:
+				// Could probably force a sample change to an actual pulse duty wave sound?
+				//mus_duty1 = *ds_mus_data[i]++;
+				//if (sndChannel[i].mus_enabled) NR11_REG = mus_duty1;
+				break;
+			case T_PAN:
+				// No pan for now; engine's DS is currently global hardpan only.
+				//sndChannel[i].mus_pan = *ds_mus_data[i]++;
+				//if (sndChannel[i].mus_enabled) NR51_REG = (NR51_REG & 0xEEU) | sndChannel[i].mus_pan;
+				break;
+			case T_PORTAMENTO:
+				sndChannel[i].mus_slide = *ds_mus_data[i]++;
+				break;
+			case T_VIBRATO:
+				sndChannel[i].mus_vib_pos = 0U;
+				note = *ds_mus_data[i]++;
+				sndChannel[i].mus_vib_speed = note & 15U;
+				note = note >> 4;
+				if (note == 1U) sndChannel[i].mus_vib_table = vib1;
+				else if (note == 2U) sndChannel[i].mus_vib_table = vib2;
+				else if (note == 3U) sndChannel[i].mus_vib_table = vib3;
+				else sndChannel[i].mus_vib_table = vib4;
+				sndChannel[i].mus_vib_delay = 0U;
+				break;
+			case T_VIBRATO_DELAY:
+				sndChannel[i].mus_vib_pos = 0U;
+				note = *ds_mus_data[i]++;
+				sndChannel[i].mus_vib_speed = note & 15U;
+				note = note >> 4;
+				if (note == 1U) sndChannel[i].mus_vib_table = vib1;
+				else if (note == 2U) sndChannel[i].mus_vib_table = vib2;
+				else if (note == 3U) sndChannel[i].mus_vib_table = vib3;
+				else sndChannel[i].mus_vib_table = vib4;
+				sndChannel[i].mus_vib_delay = *ds_mus_data[i]++;
+				break;
+
+
+
+
+			case T_REP_START:
+				sndChannel[i].mus_rep_depth++;
+				sndChannel[i].ds_mus_rep[sndChannel[i].mus_rep_depth] = ds_mus_data[i];
+				break;
+			case T_REP_END:
+				note = *ds_mus_data[i]++;
+				if (!sndChannel[i].mus_repeats[sndChannel[i].mus_rep_depth]) {
+					sndChannel[i].mus_repeats[sndChannel[i].mus_rep_depth] = note;
+					ds_mus_data[i] = sndChannel[i].ds_mus_rep[sndChannel[i].mus_rep_depth];
+				}
+				sndChannel[i].mus_repeats[sndChannel[i].mus_rep_depth]--;
+				if (sndChannel[i].mus_repeats[sndChannel[i].mus_rep_depth]) {
+					ds_mus_data[i] = sndChannel[i].ds_mus_rep[sndChannel[i].mus_rep_depth];
+				}
+				else {
+					sndChannel[i].mus_rep_depth--;
+				}
+				break;
+
+
+			case T_LOOP:
+				ds_mus_loop[i] = ds_mus_data[i];
+				break;
+			case T_PITCH_OFFSET:
+				sndChannel[i].mus_po = *ds_mus_data[i]++;
+				break;
+			case T_TEMPO:
+				TMA_REG = getTMAValue(*ds_mus_data[i]++);
+				break;
+			case T_NOISE_STEP:
+				break;
+			case T_WAVE:
+				break;
+			case T_MACRO:
+				note = *ds_mus_data[i]++;
+				ds_mus_data_bak[i] = ds_mus_data[i];
+				ds_mus_data[i] = mus_song + ((UWORD*)mus_song)[5 + SND_MAX_DS_CHANNELS + note];
+				sndChannel[i].mus_macro = 1U;
+				break;
+			case T_EOF:
+				if (sndChannel[i].mus_macro) {
+					ds_mus_data[i] = ds_mus_data_bak[i];
+					sndChannel[i].mus_macro = 0U;
+				}
+				else {
+					ds_mus_data[i] = ds_mus_loop[i];
+					sndChannel[i].mus_done = 1U;
+					if (*ds_mus_data[i] == T_EOF) {
+						sndChannel[i].mus_wait = 255U;
+						return;
+					}
+				}
+				break;
+			}
+		}
+
+		dirSndStep(i);
 	}
 }

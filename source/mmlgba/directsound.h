@@ -16,7 +16,7 @@
 #define DMA_MEMSET32		(BIT(8) | BIT(10) | BIT(15))
 
 
-#define SND_MAX_CHANNELS		4
+#define SND_MAX_DS_CHANNELS		6
 
 typedef enum _SND_FREQ
 {
@@ -59,12 +59,33 @@ typedef enum _SND_FREQ
 
 typedef struct _SOUND_CHANNEL
 {
-	s8		*data;
-	u32		pos;
-	u32		inc;
-	u32		vol;
-	u32		length;
-	u32		loopLength;
+	s8		*sampleData;
+	u32		samplePos;
+	u32		sampleInc;
+	u32		sampleVol;
+	u32		sampleLength;
+	u32		sampleLoopLength;
+
+  u8 mus_enabled;
+  u8 mus_done;
+  u16 mus_freq;
+  u8 mus_octave;
+  u8 mus_length;
+  u8 mus_volume;
+  u8 mus_env;
+  u8 mus_pan;
+  u8 mus_wait;
+  u16 mus_target;
+  u8 mus_slide;
+  u8 mus_vib_speed;
+  u8* mus_vib_table;
+  u8 mus_vib_pos;
+  u8 mus_vib_delay;
+  u8 mus_po; //pitch offset
+  u8 mus_macro;
+  u8* ds_mus_rep[4];
+  u8 mus_repeats[4];
+  u8 mus_rep_depth;
 
 } SOUND_CHANNEL;
 
@@ -79,9 +100,9 @@ typedef struct _SOUND_VARS
 
 
 
-extern SOUND_CHANNEL	sndChannel[SND_MAX_CHANNELS];
+extern SOUND_CHANNEL	sndChannel[SND_MAX_DS_CHANNELS];
 extern SOUND_VARS		sndVars;
-extern sampleBitRate, streamBitRate;
+extern int sampleBitRate, streamBitRate;
 
 
 inline void Dma3(void *dest, const void *src, u32 count, u16 flags)

@@ -118,3 +118,8 @@ const unsigned int freq[] = {
 	2030UL,
 	2031UL
 };
+
+// DirectSound frequency table
+const unsigned int ds_freq[] = {
+	0UL, 0UL
+};

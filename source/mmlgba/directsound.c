@@ -50,7 +50,7 @@ static const FREQ_TABLE freqTable[SND_FREQ_NUM] =
 };
 // Globals, as seen in tutorial day 2. In the tutorial, I hardcoded
 // SOUND_MAX_CHANNELS to 4, but it's the same ffect either way
-SOUND_CHANNEL sndChannel[SND_MAX_CHANNELS];
+SOUND_CHANNEL sndChannel[SND_MAX_DS_CHANNELS];
 SOUND_VARS sndVars;
 
 // This is the actual double buffer memory. The size is taken from
@@ -83,14 +83,30 @@ void dirSndInit(SND_FREQ freq)
 	sndVars.activeBuffer	= 1;	// 1 so first swap will start DMA
 
 		// initialize channel structures
-	for(i = 0; i < SND_MAX_CHANNELS; i++)
+	for(i = 0; i < SND_MAX_DS_CHANNELS; i++)
 	{
-		sndChannel[i].data			= 0;
-		sndChannel[i].pos			= 0;
-		sndChannel[i].inc			= 0;
-		sndChannel[i].vol			= 0;
-		sndChannel[i].length		= 0;
-		sndChannel[i].loopLength	= 0;
+		sndChannel[i].sampleData			= 0;
+		sndChannel[i].samplePos			= 0;
+		sndChannel[i].sampleInc			= 0;
+		sndChannel[i].sampleVol			= 0;
+		sndChannel[i].sampleLength		= 0;
+		sndChannel[i].sampleLoopLength	= 0;
+
+		sndChannel[i].mus_enabled = 1U;
+		sndChannel[i].mus_done = 0U;
+		sndChannel[i].mus_wait = 0U;
+		sndChannel[i].mus_octave = 4U;
+		sndChannel[i].mus_length = 48U;
+		sndChannel[i].mus_volume = 0xF0U;
+		sndChannel[i].mus_env = 3U;
+		sndChannel[i].mus_rep_depth = 255U;
+		//sndChannel[i].mus_target = 0U;
+		sndChannel[i].mus_slide = 0U;
+		sndChannel[i].mus_vib_speed = 0U;
+		sndChannel[i].mus_po = 128U;
+		sndChannel[i].mus_pan = 0x11U;
+		sndChannel[i].mus_macro = 0U;
+
 	}
 
   // start up the timer we will be using
@@ -124,44 +140,44 @@ void StepDirectSound()
 	i = 0;
 	Dma3(tempBuffer, &i, sndVars.mixBufferSize*sizeof(s16)/4, DMA_MEMSET32);
 
-	for(curChn = 0; curChn < SND_MAX_CHANNELS; curChn++)
+	for(curChn = 0; curChn < SND_MAX_DS_CHANNELS; curChn++)
 	{
 		SOUND_CHANNEL *chnPtr = &sndChannel[curChn];
 
 			// check special active flag value
-		if(chnPtr->data != 0)
+		if(chnPtr->sampleData != 0)
 		{
 				// this channel is active, so mix its data into the intermediate buffer
 			for(i = 0; i < sndVars.mixBufferSize; i++)
 			{
 					// mix a sample into the intermediate buffer
-				tempBuffer[i] += chnPtr->data[ chnPtr->pos>>12 ] * chnPtr->vol;
-				chnPtr->pos += chnPtr->inc;
+				tempBuffer[i] += chnPtr->sampleData[ chnPtr->samplePos>>12 ] * chnPtr->sampleVol;
+				chnPtr->samplePos += chnPtr->sampleInc;
 
 					// loop the sound if it hits the end
-				if(chnPtr->pos >= chnPtr->length)
+				if(chnPtr->samplePos >= chnPtr->sampleLength)
 				{
 					// check special loop on/off flag value
-					if(chnPtr->loopLength == 0)
+					if(chnPtr->sampleLoopLength == 0)
 					{
 							// disable the channel and break from the i loop
-						chnPtr->data = 0;
+						chnPtr->sampleData = 0;
 						i = sndVars.mixBufferSize;
 					}
-          else if(chnPtr->loopLength == -1) // Loop infinitely if -1
+          else if(chnPtr->sampleLoopLength == -1) // Loop infinitely if -1
   					{
               // loop back
-  						while(chnPtr->pos >= chnPtr->length)
+  						while(chnPtr->samplePos >= chnPtr->sampleLength)
   						{
-  							chnPtr->pos -= chnPtr->length;
+  							chnPtr->samplePos -= chnPtr->sampleLength;
   						}
   					}
 					else
 					{
 							// loop back
-						while(chnPtr->pos >= chnPtr->length)
+						while(chnPtr->samplePos >= chnPtr->sampleLength)
 						{
-							chnPtr->pos -= chnPtr->loopLength;
+							chnPtr->samplePos -= chnPtr->sampleLoopLength;
 						}
 					}
 				}

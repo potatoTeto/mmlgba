@@ -14,12 +14,14 @@
 #include "data/bgm/mainmenu.h"
 #include "data/bgm/plains.h"
 #include "data/bgm/space.h"
+#include "data/bgm/test.h"
 #include "data/bgm/streams/musMonchi.h"
 #include "data/samples/bigKick.h"
 #include "data/samples/smpPiano.h"
 
 
 // s32 i, keys_pressed, keys_released;
+s32 keys_pressed, keys_released;
 
 // Function called when timer 0 overflows
 void musicUpdate(void) {
@@ -61,7 +63,7 @@ int main(void) {
 	REG_TM3CNT_L = -193; // ~106bpm starting value
 	REG_TM3CNT_H = 0x3 | TIMER_IRQ | TIMER_START; // 16384 hz | use IRQ | On
 
-	mus_init((UBYTE*)&mainmenu_data);
+	mus_init((UBYTE*)&test_data);
 
 	// the vblank interrupt must be enabled for VBlankIntrWait() to work
 	// since the default dispatcher handles the bios flags no vblank handler
@@ -81,12 +83,41 @@ int main(void) {
 	while (1) {
 		VBlankIntrWait();
 
-/*
 		scanKeys();
 
 		keys_pressed = keysDown();
 		keys_released = keysUp();
 
+		    if (keys_pressed & KEY_L) {
+		      // make sure the channel is disabled first
+		      sndChannel[1].sampleData = 0;
+
+		      // set up channel vars
+
+		      // Start at the start
+		      sndChannel[1].samplePos = 0;
+
+		      // Calculate the increment. The piano sample was
+		      // originally 8363Hz, so I've hardcoded it in here.
+		      // Later we'll want to make a table of info on samples
+		      // so it can be done automatically.
+		      // also, it is 12-bit fixed-point, so shift up before the divide
+		      sndChannel[1].sampleInc			= (10000<<12)/streamBitRate;
+
+		      // Set the volume to maximum
+		      sndChannel[1].sampleVol = 64;
+
+		      // The length of the original sample (also 12-bit fixed-point)
+		      // This will go into our sample info table too
+		      sndChannel[1].sampleLength = 11396 << 12;
+		      // Set the loop length to the special no-loop marker value
+		      sndChannel[1].sampleLoopLength = 0;
+
+		      // Set the data. This will actually start the channel up so
+		      // it will be processed next time StepDirectSound() is called
+		      sndChannel[1].sampleData = (s8*) bigKick;
+		    }
+		/*
 		if (keys_pressed & KEY_START) {
 				sndChannel[3].data = 0;
 				sndChannel[3].pos = 0;
@@ -97,35 +128,6 @@ int main(void) {
 				sndChannel[3].data = (s8*) musMonchi;
 		}
 
-    if (keys_pressed & KEY_L) {
-      // make sure the channel is disabled first
-      sndChannel[0].data = 0;
-
-      // set up channel vars
-
-      // Start at the start
-      sndChannel[0].pos = 0;
-
-      // Calculate the increment. The piano sample was
-      // originally 8363Hz, so I've hardcoded it in here.
-      // Later we'll want to make a table of info on samples
-      // so it can be done automatically.
-      // also, it is 12-bit fixed-point, so shift up before the divide
-      sndChannel[0].inc			= (10000<<12)/streamBitRate;
-
-      // Set the volume to maximum
-      sndChannel[0].vol = 64;
-
-      // The length of the original sample (also 12-bit fixed-point)
-      // This will go into our sample info table too
-      sndChannel[0].length = 11396 << 12;
-      // Set the loop length to the special no-loop marker value
-      sndChannel[0].loopLength = 0;
-
-      // Set the data. This will actually start the channel up so
-      // it will be processed next time StepDirectSound() is called
-      sndChannel[0].data = (s8*) bigKick;
-    }
 
     if (keys_pressed & KEY_R) {
       // make sure the channel is disabled first

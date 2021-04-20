@@ -10,7 +10,9 @@ public class Parser {
     private boolean in_macro;
 	private Lexer.Token next;
 
-	private static final String[] CHANNEL_NAMES = {"A","B","C","D"};
+	private static final String[] CHANNEL_NAMES = {"A","B","C","D","E","F","G","H","I","J"};
+	private static final int CHANNEL_COUNT = CHANNEL_NAMES.length;
+	
 	private static final String[] NOTE_NAMES = {"c","cs","d","ds","e","f","fs","g","gs","a","as","b"};
 	private static final int[] WAVE_VOLUMES = {0, 96, 64, 32};
 
@@ -43,7 +45,7 @@ public class Parser {
 			}
 		}
 
-		for(int i = 0; i < 4; ++i) {
+		for(int i = 0; i < CHANNEL_COUNT; ++i) {
 			song.addData(i, Song.CMD.T_EOF.ordinal());
 		}
 
@@ -140,7 +142,7 @@ public class Parser {
         in_macro = true;
         next = tokens.get(0);
 
-        boolean active[] = {true, false, false, false};
+        boolean active[] = {true, false, false, false, false, false, false, false, false, false};
         parseCommands(active);
         List<Integer> macro_data = song.getChannel(0);
 
@@ -154,10 +156,10 @@ public class Parser {
 	}
 
     private void parseChannel() throws ParserException {
-		boolean active[] = new boolean[4];
+		boolean active[] = new boolean[CHANNEL_COUNT];
 		// Parse active channels
 		while(next.type == Lexer.TokenType.CHANNEL) {
-			for(int i = 0; i < 4; ++i) {
+			for(int i = 0; i < CHANNEL_COUNT; ++i) {
 				if(next.data.equals(CHANNEL_NAMES[i])) {
 					active[i] = true;
 					break;

@@ -7,7 +7,8 @@ import java.util.Collection;
 
 public class Song {
 	private String filename;
-
+	private int channelCount = 10;
+	
 	private List<List<Integer>> channel;
 
 	private List<List<Integer>> waveData;
@@ -15,7 +16,7 @@ public class Song {
 
     private List<List<Integer>> macroData;
     private Map<Integer,Integer> macroMap;
-
+    
 	public enum CMD {
 		T_LENGTH,
 		T_OCTAVE,
@@ -61,7 +62,7 @@ public class Song {
         macroMap = new HashMap<Integer,Integer>();
 
 		channel = new ArrayList<List<Integer>>();
-		for(int i = 0; i < 4; ++i) {
+		for(int i = 0; i < channelCount; ++i) {
 			channel.add(new ArrayList<Integer>());
 		}
 	}
@@ -97,7 +98,7 @@ public class Song {
     }
 
 	public void addData(boolean[] active, int value) {
-		for(int i = 0; i < 4; ++i) {
+		for(int i = 0; i < channelCount; ++i) {
 			if(active[i]) {
 				addData(i, value);
 			}
@@ -105,7 +106,7 @@ public class Song {
 	}
 
 	public void addData(boolean[] active, Collection<Integer> values) {
-		for(int i = 0; i < 4; ++i) {
+		for(int i = 0; i < channelCount; ++i) {
 			if(active[i]) {
 				addData(i, values);
 			}
@@ -119,7 +120,7 @@ public class Song {
 	public List<Integer> getData() {
 		List<Integer> data = new ArrayList<Integer>();
 
-        int wave_start = (4 + 1 + macroData.size()) * 2;
+        int wave_start = (channelCount + 1 + macroData.size()) * 2;
         int pos = wave_start + waveData.size() * 16;
         int[] macro_start = new int[macroData.size()];
         for(int i = 0; i < macro_start.length; ++i) {
@@ -132,16 +133,35 @@ public class Song {
 		int c2Start = c1Start + channel.get(0).size();
 		int c3Start = c2Start + channel.get(1).size();
 		int c4Start = c3Start + channel.get(2).size();
+		int ds1Start = c4Start + channel.get(3).size();
+		int ds2Start = ds1Start + channel.get(4).size();
+		int ds3Start = ds2Start + channel.get(5).size();
+		int ds4Start = ds3Start + channel.get(6).size();
+		int ds5Start = ds4Start + channel.get(7).size();
+		int ds6Start = ds5Start + channel.get(8).size();
 
         // Channel data start values
-		data.add(c1Start & 0xFF);
-		data.add(c1Start >> 8);
+		data.add(c1Start & 0xFF); // write low byte
+		data.add(c1Start >> 8); // write high byte
 		data.add(c2Start & 0xFF);
 		data.add(c2Start >> 8);
 		data.add(c3Start & 0xFF);
 		data.add(c3Start >> 8);
 		data.add(c4Start & 0xFF);
 		data.add(c4Start >> 8);
+		
+		data.add(ds1Start & 0xFF);
+		data.add(ds1Start >> 8);
+		data.add(ds2Start & 0xFF);
+		data.add(ds2Start >> 8);
+		data.add(ds3Start & 0xFF);
+		data.add(ds3Start >> 8);
+		data.add(ds4Start & 0xFF);
+		data.add(ds4Start >> 8);
+		data.add(ds5Start & 0xFF);
+		data.add(ds5Start >> 8);
+		data.add(ds6Start & 0xFF);
+		data.add(ds6Start >> 8);
 
         data.add(wave_start & 0xFF);
         data.add(wave_start >> 8);
@@ -167,7 +187,7 @@ public class Song {
         }
 
 		// Output channel data
-		for(int i = 0; i < 4; ++i) {
+		for(int i = 0; i < channelCount; ++i) {
 			data.addAll(channel.get(i));
 		}
 
