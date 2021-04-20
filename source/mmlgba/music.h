@@ -19,7 +19,6 @@ void mus_restore1();
 void mus_restore4();
 void dirSndNoteOff(s8 channel);
 void dirSndNoteOn(s8 channel);
-void dirSndStep(s8 channel);
 UBYTE mus_is_done();
 void musicSequencerUpdate();
 void gbPulse1Update();

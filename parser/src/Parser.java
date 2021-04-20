@@ -288,23 +288,40 @@ public class Parser {
 						throw new ParserException("Invalid volume. Expected number.", next);
 					}
 					int volume = parseInt(next.data);
-					if(active[2] && (volume < 0 || volume > 3)) {
-						throw new ParserException("Invalid volume for wave channel. Expected 0-3.", next);
-					}
-					if(volume < 0 || volume > 15) {
-						throw new ParserException("Invalid volume value. Expected 0-15.", next);
-					}
-					eat();
 
-					for(int i = 0; i < 4; ++i) {
-						if(active[i]) {
-							if(i == 2) {
-								song.addData(i, Song.CMD.T_VOL.ordinal());
-								song.addData(i, WAVE_VOLUMES[volume]);
-							} else {
-								song.addData(i, Song.CMD.T_VOL.ordinal());
-								song.addData(i, volume << 4);
+					if (active[0] || active[1] || active[2] || active[3]) {
+						// We're dealing with a GB Sound Channel
+						
+						// Ensure that, if we're writing to the Wave Channel, we're using a valid volume
+						if(active[2] && (volume < 0 || volume > 3)) {
+							throw new ParserException("Invalid volume for wave channel. Expected 0-3.", next);
+						}
+						if(volume < 0 || volume > 15) {
+							throw new ParserException("Invalid volume value. Expected 0-15.", next);
+						}
+						eat();
+	
+						for(int i = 0; i < 4; ++i) {
+							if(active[i]) {
+								if(i == 2) {
+									song.addData(i, Song.CMD.T_VOL.ordinal());
+									song.addData(i, WAVE_VOLUMES[volume]);
+								} else {
+									song.addData(i, Song.CMD.T_VOL.ordinal());
+									song.addData(i, volume << 4);
+								}
 							}
+						}
+					} else {
+						// We're dealing with a DirectSound channel. Volume must range between 0-127
+						if(volume < 0 || volume > 127) {
+							throw new ParserException("Invalid volume value. Expected 0-127.", next);
+						}
+						eat();
+						
+						for(int i = 4; i < CHANNEL_COUNT; ++i) {
+							song.addData(i, Song.CMD.T_VOL.ordinal());
+							song.addData(i, volume);
 						}
 					}
 				}

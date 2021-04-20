@@ -6,6 +6,7 @@
 #include <gba_dma.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "../data/samples/smpPiano.h"
 
 // structure to store all the frequency settings we allow
 typedef struct _FREQ_TABLE
@@ -85,10 +86,10 @@ void dirSndInit(SND_FREQ freq)
 		// initialize channel structures
 	for(i = 0; i < SND_MAX_DS_CHANNELS; i++)
 	{
-		sndChannel[i].sampleData			= 0;
+		sndChannel[i].sampleData			= (s8*) smpPiano;
 		sndChannel[i].samplePos			= 0;
 		sndChannel[i].sampleInc			= 0;
-		sndChannel[i].sampleVol			= 0;
+		sndChannel[i].sampleVol			= DS_MAX_VOLUME;
 		sndChannel[i].sampleLength		= 0;
 		sndChannel[i].sampleLoopLength	= 0;
 
@@ -106,6 +107,10 @@ void dirSndInit(SND_FREQ freq)
 		sndChannel[i].mus_po = 128U;
 		sndChannel[i].mus_pan = 0x11U;
 		sndChannel[i].mus_macro = 0U;
+
+		sndChannel[i].mus_note_on = 0U;
+
+		sndChannel[i].output_freq = 0U;
 
 	}
 

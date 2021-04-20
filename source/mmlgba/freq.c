@@ -119,6 +119,13 @@ const unsigned int freq[] = {
 	2031UL
 };
 
+
+const unsigned int octave1Period[12] = {
+      // this is the first row of the table from before
+   856,808,762,720,678,640,604,570,538,508,480,453   // C-1 to B-1
+};
+
+
 // DirectSound frequency table
 const unsigned int ds_freq[] = {
 	0UL, 0UL

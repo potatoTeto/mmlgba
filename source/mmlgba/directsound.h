@@ -17,6 +17,7 @@
 
 
 #define SND_MAX_DS_CHANNELS		6
+#define DS_MAX_VOLUME 127
 
 typedef enum _SND_FREQ
 {
@@ -69,6 +70,7 @@ typedef struct _SOUND_CHANNEL
   u8 mus_enabled;
   u8 mus_done;
   u16 mus_freq;
+  u16 output_freq;
   u8 mus_octave;
   u8 mus_length;
   u8 mus_volume;
@@ -86,6 +88,7 @@ typedef struct _SOUND_CHANNEL
   u8* ds_mus_rep[4];
   u8 mus_repeats[4];
   u8 mus_rep_depth;
+  u8 mus_note_on;
 
 } SOUND_CHANNEL;
 
@@ -97,8 +100,6 @@ typedef struct _SOUND_VARS
 	u8		activeBuffer;
 
 } SOUND_VARS;
-
-
 
 extern SOUND_CHANNEL	sndChannel[SND_MAX_DS_CHANNELS];
 extern SOUND_VARS		sndVars;

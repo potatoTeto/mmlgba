@@ -43,9 +43,7 @@ UBYTE mus_macro1, mus_macro2, mus_macro3, mus_macro4;
 UBYTE* mus_rep1[MAX_REPEATS], * mus_rep2[MAX_REPEATS], * mus_rep3[MAX_REPEATS], * mus_rep4[MAX_REPEATS];
 UBYTE mus_repeats1[MAX_REPEATS], mus_repeats2[MAX_REPEATS], mus_repeats3[MAX_REPEATS], mus_repeats4[MAX_REPEATS];
 UBYTE mus_rep_depth1, mus_rep_depth2, mus_rep_depth3, mus_rep_depth4;
-
-// DirectSound Variables
-bool initNote = false;
+u16 periodTable[12*5];
 
 // On GB this is 255 - value
 UWORD getTMAValue(UBYTE value)
@@ -55,6 +53,20 @@ UWORD getTMAValue(UBYTE value)
 
 void mus_init(UBYTE* song_data) {
 	UBYTE i, j;
+
+
+	// 5 octaves' worth of space. Create the DirectSound periodTable so we can play music notes at correct frequencies
+
+	u8 octave, note;
+
+	for(octave = 0; octave < 5; octave++)
+	{
+	   for(note = 0; note < 12; note++)
+	   {
+	         // *2 to get us into octave 0, then divide by 2 for each octave up from there
+	      periodTable[octave*12 + note] = (octave1Period[note]*2) >> octave; // octave1Period is from freq.c
+	   }
+	}
 
 	/*NR52_REG = 0x80U; // Enable sound
 	NR51_REG = 0xFFU;
@@ -92,7 +104,6 @@ void mus_init(UBYTE* song_data) {
 	mus_data4 = mus_loop4 = song_data + ((UWORD*)song_data)[3];
 	mus_wave = song_data + ((UWORD*)song_data)[4 + SND_MAX_DS_CHANNELS];
 
-
 	mus_enabled1 = mus_enabled4 = 1U;
 	mus_done1 = mus_done2 = mus_done3 = mus_done4 = 0U;
 	mus_wait1 = mus_wait2 = mus_wait3 = mus_wait4 = 0U;
@@ -122,16 +133,16 @@ void mus_init(UBYTE* song_data) {
 		sndChannel[i].mus_enabled = 1U;
 		sndChannel[i].mus_done = 0U;
 		sndChannel[i].mus_wait = 0U;
-		sndChannel[i].mus_octave = 4U;
-		sndChannel[i].mus_length = 48U;
+		sndChannel[i].mus_octave = 4U;		// o4
+		sndChannel[i].mus_length = 48U;		// quarter note
 		sndChannel[i].mus_volume = 0xF0U;
 		sndChannel[i].mus_env = 3U;
 		sndChannel[i].mus_rep_depth = 255U;
 		sndChannel[i].mus_slide = 0U;
 		sndChannel[i].mus_vib_speed = 0U;
-		sndChannel[i].mus_po = 128U;
-		sndChannel[i].mus_pan = 0x11U;
-		sndChannel[i].mus_macro = 0U;
+		sndChannel[i].mus_po = 128U;			// pitch offset = centered
+		sndChannel[i].mus_pan = 0x11U;		// center pan
+		sndChannel[i].mus_macro = 0U;			// no macros
 
 		for (j = 0U; j != MAX_REPEATS; ++j) {
 		  sndChannel[i].mus_repeats[j] = 0U;
@@ -181,6 +192,7 @@ void mus_restore4() {
 }
 
 void dirSndNoteOff(s8 channel) {
+		sndChannel[channel].mus_note_on = 0;
 		// Kill the sound (or initialize it)
 		sndChannel[channel].sampleData = 0;
 		// set up channel vars
@@ -188,8 +200,15 @@ void dirSndNoteOff(s8 channel) {
 }
 
 void dirSndNoteOn(s8 channel) {
+		sndChannel[channel].mus_note_on = 1;
+		// make sure the channel is disabled first
+		sndChannel[channel].sampleData = 0;
+		// Start at the start
+		sndChannel[channel].samplePos = 0;
 		// Play at 2* frequency. This is one octave above normal
-		sndChannel[channel].sampleInc = (sampleBitRate*2<<12)/streamBitRate;
+		//int this = 3579546 / (sndChannel[channel].sampleLength * 428);//sndChannel[channel].output_freq);
+
+		sndChannel[channel].sampleInc = ((sampleBitRate << 12))/streamBitRate;//((sndChannel[channel].output_freq)<<12)/streamBitRate;
 
 		// Same
 		sndChannel[channel].sampleVol = 64;
@@ -204,31 +223,16 @@ void dirSndNoteOn(s8 channel) {
 		sndChannel[channel].sampleLoopLength = (10514-9176)<<12;
 
 		// Same
-		sndChannel[channel].sampleData = (s8*) bigKick;
-}
-
-void dirSndStep(s8 channel) {
-	// Play at 2* frequency. This is one octave above normal
-	sndChannel[channel].sampleInc = (sampleBitRate*2<<12)/streamBitRate;
-
-	// Same
-	sndChannel[channel].sampleVol = 1;
-
-	// Same
-	sndChannel[channel].sampleLength = 10516<<12;
-
-	// This one will actually loop. Here, the loop start
-	// position (which I checked in the MOD I ripped the
-	// sample from) is 9176. So, we take length-loopStart
-	// and convert to 12-bit fixed-point like everything else.
-	sndChannel[channel].sampleLoopLength = (10514-9176)<<12;
-
-	// Same
-	sndChannel[channel].sampleData = (s8*) bigKick;
+		if (channel == 3)
+			sndChannel[channel].sampleData = (s8*) bigKick;
+		else
+			sndChannel[channel].sampleData = (s8*) smpPiano;
 }
 
 UBYTE mus_is_done() {
-	return mus_paused || (mus_done1 && mus_done2 && mus_done3 && mus_done4);
+	return mus_paused || (mus_done1 && mus_done2 && mus_done3 && mus_done4
+	 && sndChannel[0].mus_done && sndChannel[1].mus_done && sndChannel[2].mus_done
+  && sndChannel[3].mus_done && sndChannel[4].mus_done && sndChannel[5].mus_done);
 }
 
 void musicSequencerUpdate() {
@@ -880,9 +884,9 @@ void gbNoiseUpdate() {
 
 
 void dirSndMusChannelsUpdate() {
-	// Initialize all the DirectSound pseudo-channels
+	// Update all the DirectSound pseudo-channels' states based on the sequence data
 	UBYTE i;
-	for (i = 0U; i != 1U; ++i) {//SND_MAX_DS_CHANNELS; ++i) {
+	for (i = 0U; i != SND_MAX_DS_CHANNELS; ++i) {
 		UBYTE note;
 		UWORD tmp_freq;
 		if (sndChannel[i].mus_slide) {
@@ -899,6 +903,7 @@ void dirSndMusChannelsUpdate() {
 				}
 			}
 			if (sndChannel[i].mus_enabled) {
+				sndChannel[i].output_freq = ((UBYTE)sndChannel[i].mus_freq) << 8 | (sndChannel[i].mus_freq >> 8);
 				//NR13_REG = (UBYTE)sndChannel[i].mus_freq;
 				//NR14_REG = sndChannel[i].mus_freq >> 8;
 			}
@@ -912,6 +917,7 @@ void dirSndMusChannelsUpdate() {
 			tmp_freq = sndChannel[i].mus_freq - *sndChannel[i].mus_vib_table + sndChannel[i].mus_vib_table[sndChannel[i].mus_vib_pos];
 
 			if (sndChannel[i].mus_enabled) {
+				sndChannel[i].output_freq = ((UBYTE)tmp_freq) << 8 | (tmp_freq >> 8);
 				//NR13_REG = (UBYTE)tmp_freq;
 				//NR14_REG = tmp_freq >> 8;
 			}
@@ -951,6 +957,7 @@ void dirSndMusChannelsUpdate() {
 						sndChannel[i].mus_freq = tmp_freq;
 					}
 
+					// Play the tone at the designated frequency
 					if (sndChannel[i].mus_enabled) dirSndNoteOn(i); //NR12_REG = sndChannel[i].mus_volume | sndChannel[i].mus_env; perhaps ADSR could be defined here too?
 				}
 				if (sndChannel[i].mus_enabled) {
@@ -963,6 +970,7 @@ void dirSndMusChannelsUpdate() {
 					*/
 
 					// Set the sound frequency
+					sndChannel[i].output_freq = ((UBYTE)sndChannel[i].mus_freq) << 8 | ((sndChannel[i].mus_freq >> 8) | 0x80U);
 					//NR13_REG = (UBYTE)sndChannel[i].mus_freq;
 					//NR14_REG = (sndChannel[i].mus_freq >> 8) | 0x80U;
 				}
@@ -982,7 +990,7 @@ void dirSndMusChannelsUpdate() {
 				sndChannel[i].mus_octave--;
 				break;
 			case T_VOL:
-				sndChannel[i].mus_volume = ((*ds_mus_data[i]++) * 64) / 16;
+				//sndChannel[i].mus_volume = ((*ds_mus_data[i]++) * (64)) / 16;//(DS_MAX_VOLUME + 1)) / 16;
 				//if (sndChannel[i].mus_enabled) NR12_REG = sndChannel[i].mus_volume | sndChannel[i].mus_env; // Step the ADSR envelope here too
 				break;
 			case T_ENV:
@@ -1085,6 +1093,5 @@ void dirSndMusChannelsUpdate() {
 			}
 		}
 
-		dirSndStep(i);
 	}
 }

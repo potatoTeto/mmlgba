@@ -20,8 +20,8 @@
 #include "data/samples/smpPiano.h"
 
 
-// s32 i, keys_pressed, keys_released;
-s32 keys_pressed, keys_released;
+s32 i, keys_pressed, keys_released;
+char strMsg[] = "xxxxxx";
 
 // Function called when timer 0 overflows
 void musicUpdate(void) {
@@ -165,8 +165,14 @@ int main(void) {
       }
     }
 */
-
-		iprintf("\x1b[0;0H mmlgba Sound Test v1.0\n   by potatoTeto\n\n\n github.com/potatoTeto/mmlgba");
+		for (i = 0; i < SND_MAX_DS_CHANNELS; i++) {
+			// Disable all the channels by setting the special disable value
+			if (sndChannel[i].mus_note_on)
+				strMsg[i] = 'X';
+			else
+				strMsg[i] = 'x';
+		}
+		iprintf("\x1b[0;0H mmlgba Sound Test v1.0\n   by potatoTeto\n\n\n github.com/potatoTeto/mmlgba\n\n\n\n\n                   %s\n%x", strMsg,sndChannel[0].output_freq);
 
 		StepDirectSound();
 	}
