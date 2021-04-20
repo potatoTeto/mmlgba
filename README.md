@@ -4,7 +4,9 @@ An MML parser and DevkitPro sound driver for the Nintendo Game Boy Advance. This
 * Deku's interfacing framework for AGB DirectSound: https://deku.gbadev.org/program/sound1.html
 
 # Dependencies
-The only thing required is <a href="https://devkitpro.org/wiki/Getting_Started">DevkitPro with libgba.</a> Just configure the Makefile(s) to point to your $(DEVKITPRO) and $(DEVKITARM), then type "make" in terminal
+The driver is compiled with <a href="https://devkitpro.org/wiki/Getting_Started">DevkitPro with libgba.</a> Just configure the Makefile(s) to point to your $(DEVKITPRO) and $(DEVKITARM), then type "make" in terminal
+
+The parser is written for Java within Eclipse, compiled with <a href="https://www.oracle.com/java/technologies/javase-downloads.html">JDK</a>. Nothing else is needed to compile the parser.
 
 # Special Thanks
 <a href="https://github.com/SimonLarsen">@SimonLarsen</a> - Created <a href="https://github.com/SimonLarsen/mmlgb">the original mmlgb engine.</a><br>
