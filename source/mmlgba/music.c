@@ -50,6 +50,7 @@ u16 periodTable[12*5];
 UWORD getTMAValue(UBYTE value)
 {
 	return 0xFFFF - (UWORD)value;
+	//return 0xFF - (UBYTE)value;//0xFFFF - (UWORD)value;
 }
 
 void mus_init(UBYTE* song_data) {

@@ -18,7 +18,7 @@ public class Parser {
 
 	private static final int BEAT_STEPS = 48;
 	private static final int BAR_STEPS = 4*BEAT_STEPS;
-	private static final int TIMA_SPEED = 280896;//11469;//16384;
+	private static final int TIMA_SPEED = 280896 / 2;//11469;//16384;
 
 	public Parser(List<Lexer.Token> tokens) {
 		this.tokens = tokens;

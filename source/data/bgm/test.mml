@@ -2,7 +2,7 @@
 
 
 ;A t120 o5 l4 @wd1 v9 cdef t60 cdef t30  cdef t150  cdef
-A o5 l4 v15 cdef cdef cdef cdef
+A o5 l4 v15 cd t60 ef cdef t100 cdef t200 cdef
 B o4 l4 @wd2 v15 cdcd
 C o3 l4 @wave0 v3 c2c2
 ;F o4 l4 [v120 c v40 c v120 c v40 c]99
