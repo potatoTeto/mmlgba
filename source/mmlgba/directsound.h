@@ -17,7 +17,7 @@
 
 
 #define SND_MAX_DS_CHANNELS		6
-#define DS_MAX_VOLUME 127
+#define DS_MAX_VOLUME 255
 
 typedef enum _SND_FREQ
 {
@@ -63,7 +63,6 @@ typedef struct _SOUND_CHANNEL
 	s8		*sampleData;
 	u32		samplePos;
 	u32		sampleInc;
-	u32		sampleVol;
 	u32		sampleLength;
 	u32		sampleLoopLength;
 
@@ -74,7 +73,8 @@ typedef struct _SOUND_CHANNEL
   u8 mus_octave;
   u8 mus_length;
   u8 mus_volume;
-  u8 mus_env;
+  u16 mus_adsr;
+  u8 mus_curr_adsr;
   u8 mus_pan;
   u8 mus_wait;
   u16 mus_target;

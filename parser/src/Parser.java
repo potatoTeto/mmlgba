@@ -18,7 +18,7 @@ public class Parser {
 
 	private static final int BEAT_STEPS = 48;
 	private static final int BAR_STEPS = 4*BEAT_STEPS;
-	private static final int TIMA_SPEED = 11469;//16384;
+	private static final int TIMA_SPEED = 280896;//11469;//16384;
 
 	public Parser(List<Lexer.Token> tokens) {
 		this.tokens = tokens;
@@ -313,15 +313,17 @@ public class Parser {
 							}
 						}
 					} else {
-						// We're dealing with a DirectSound channel. Volume must range between 0-127
-						if(volume < 0 || volume > 127) {
-							throw new ParserException("Invalid volume value. Expected 0-127.", next);
+						// We're dealing with a DirectSound channel. Volume must range between 0-255
+						if(volume < 0 || volume > 255) {
+							throw new ParserException("Invalid volume value. Expected 0-255.", next);
 						}
 						eat();
 						
 						for(int i = 4; i < CHANNEL_COUNT; ++i) {
-							song.addData(i, Song.CMD.T_VOL.ordinal());
-							song.addData(i, volume);
+							if(active[i]) {
+								song.addData(i, Song.CMD.T_VOL.ordinal());
+								song.addData(i, volume);
+							}
 						}
 					}
 				}

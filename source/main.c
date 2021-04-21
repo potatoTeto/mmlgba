@@ -22,6 +22,7 @@
 
 s32 i, keys_pressed, keys_released, initial_bpm;
 char strMsg[] = "xxxxxx";
+UBYTE* wtf;
 
 // Function called when timer 0 overflows
 void musicUpdate(void) {
@@ -59,10 +60,10 @@ void musicUpdate(void) {
 //---------------------------------------------------------------------------------
 int main(void) {
 	//---------------------------------------------------------------------------------
-	initial_bpm = 120;
+	initial_bpm = 157;
 	REG_TM3CNT_L = 0xFFFF - (UWORD)initial_bpm;//-193; // ~106bpm starting value
 	REG_TM3CNT_H = 0x3 | TIMER_IRQ | TIMER_START; // 16384 hz | use IRQ | On
-
+wtf = 0xacab;
 	mus_init((UBYTE*)&test_data);
 
 	// the vblank interrupt must be enabled for VBlankIntrWait() to work
@@ -105,7 +106,7 @@ int main(void) {
 		      sndChannel[1].sampleInc			= (10000<<12)/streamBitRate;
 
 		      // Set the volume to maximum
-		      sndChannel[1].sampleVol = 64;
+		      sndChannel[1].mus_curr_adsr = 0xFF;
 
 		      // The length of the original sample (also 12-bit fixed-point)
 		      // This will go into our sample info table too
@@ -167,13 +168,14 @@ int main(void) {
 */
 		for (i = 0; i < SND_MAX_DS_CHANNELS; i++) {
 			// Disable all the channels by setting the special disable value
-			if (sndChannel[i].mus_note_on)
+			if (sndChannel[i].mus_freq)
 				strMsg[i] = 'X';
 			else
 				strMsg[i] = 'x';
 		}
+		iprintf("\x1b[2J");
 		iprintf("\x1b[0;0H mmlgba Sound Test v1.0\n   by potatoTeto\n\n\n github.com/potatoTeto/mmlgba\n\n\n\n\n                   %s\n%x", strMsg,sndChannel[0].output_freq);
-//iprintf("\x1b[0;0H%x",sizeof(u16));
+		//iprintf("\x1b[0;0H%x",sndChannel[1].mus_freq);
 		StepDirectSound();
 	}
 }

@@ -91,7 +91,6 @@ void dirSndInit(SND_FREQ freq)
 		sndChannel[i].sampleData			= (s8*) smpPiano;
 		sndChannel[i].samplePos			= 0;
 		sndChannel[i].sampleInc			= 0;
-		sndChannel[i].sampleVol			= DS_MAX_VOLUME;
 		sndChannel[i].sampleLength		= 0;
 		sndChannel[i].sampleLoopLength	= 0;
 
@@ -100,8 +99,9 @@ void dirSndInit(SND_FREQ freq)
 		sndChannel[i].mus_wait = 0U;
 		sndChannel[i].mus_octave = 4U;
 		sndChannel[i].mus_length = 48U;
-		sndChannel[i].mus_volume = 0xF0U;
-		sndChannel[i].mus_env = 3U;
+		sndChannel[i].mus_volume = DS_MAX_VOLUME;
+		sndChannel[i].mus_adsr = 0xF0F0;
+		sndChannel[i].mus_curr_adsr = 0xFF;
 		sndChannel[i].mus_rep_depth = 255U;
 		//sndChannel[i].mus_target = 0U;
 		sndChannel[i].mus_slide = 0U;
@@ -154,42 +154,64 @@ void StepDirectSound()
 			// check special active flag value
 		if(chnPtr->sampleData != 0)
 		{
-				// this channel is active, so mix its data into the intermediate buffer
-			for(i = 0; i < sndVars.mixBufferSize; i++)
+			if(chnPtr->samplePos + chnPtr->sampleInc*sndVars.mixBufferSize >= chnPtr->sampleLength)
 			{
-					// mix a sample into the intermediate buffer
-				tempBuffer[i] += chnPtr->sampleData[ chnPtr->samplePos>>12 ] * chnPtr->sampleVol;
-				chnPtr->samplePos += chnPtr->sampleInc;
-
-					// loop the sound if it hits the end
-				if(chnPtr->samplePos >= chnPtr->sampleLength)
+					// this channel is active, so mix its data into the intermediate buffer
+				for(i = 0; i < sndVars.mixBufferSize; i++)
 				{
-					// check special loop on/off flag value
-					if(chnPtr->sampleLoopLength == 0)
+					u16 channel_out_volume = ((u16)chnPtr->mus_volume * (u16)chnPtr->mus_curr_adsr) >> 10;
+					u16 sample = chnPtr->sampleData[ chnPtr->samplePos>>12 ] * channel_out_volume;
+					tempBuffer[i] += sample;
+
+					chnPtr->samplePos += chnPtr->sampleInc;
+
+						// loop the sound if it hits the end
+					if(chnPtr->samplePos >= chnPtr->sampleLength)
 					{
-							// disable the channel and break from the i loop
-						chnPtr->sampleData = 0;
-						i = sndVars.mixBufferSize;
-					}
-          else if(chnPtr->sampleLoopLength == -1) // Loop infinitely if -1
-  					{
-              // loop back
-  						while(chnPtr->samplePos >= chnPtr->sampleLength)
-  						{
-  							chnPtr->samplePos -= chnPtr->sampleLength;
-  						}
-  					}
-					else
-					{
-							// loop back
-						while(chnPtr->samplePos >= chnPtr->sampleLength)
+						// check special loop on/off flag value
+						if(chnPtr->sampleLoopLength == 0)
 						{
-							chnPtr->samplePos -= chnPtr->sampleLoopLength;
+								// disable the channel and break from the i loop
+							chnPtr->sampleData = 0;
+							i = sndVars.mixBufferSize;
+						}
+	          else if(chnPtr->sampleLoopLength == -1) // Loop infinitely if -1
+	  					{
+	              // loop back
+	  						while(chnPtr->samplePos >= chnPtr->sampleLength)
+	  						{
+	  							chnPtr->samplePos -= chnPtr->sampleLength;
+	  						}
+	  					}
+						else
+						{
+								// loop back
+							while(chnPtr->samplePos >= chnPtr->sampleLength)
+							{
+								chnPtr->samplePos -= chnPtr->sampleLoopLength;
+							}
 						}
 					}
-				}
-			}	// end for i = 0 to bufSize
-		}	// end data != 0
+				}	// end for i = 0 to bufSize
+			}	else
+			{
+			    // after inc gets added all 304 times, the position will still be less than
+			    // the length, so there's absolutely no point in checking it every sample.
+
+			    // New loop looks like this:
+
+			   for(i = 0; i < sndVars.mixBufferSize; i++)
+			   {
+			       // mix a sample into the intermediate buffer
+						u16 channel_out_volume = ((u16)chnPtr->mus_volume * (u16)chnPtr->mus_curr_adsr) >> 10;
+						u16 sample = chnPtr->sampleData[ chnPtr->samplePos>>12 ] * channel_out_volume;
+						tempBuffer[i] += sample;
+
+						chnPtr->samplePos += chnPtr->sampleInc;
+
+			   }
+			}
+		} // end data != 0
 	}	// end channel loop
 
 		// now downsample the 16-bit buffer and copy it into the actual playing buffer

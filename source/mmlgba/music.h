@@ -10,6 +10,8 @@
 #define CHN4_OFFSET	3U
 */
 
+extern UBYTE* wtf;
+
 void mus_init(UBYTE *song);
 void mus_setPaused(UBYTE p);
 void mus_togglePaused();
@@ -19,6 +21,7 @@ void mus_restore1();
 void mus_restore4();
 void dirSndNoteOff(s8 channel);
 void dirSndNoteOn(s8 channel);
+//UBYTE* getDSMusDataAddress(s8 channel);
 UBYTE mus_is_done();
 void musicSequencerUpdate();
 void gbPulse1Update();

@@ -136,8 +136,9 @@ void mus_init(UBYTE* song_data) {
 		sndChannel[i].mus_wait = 0U;
 		sndChannel[i].mus_octave = 4U;		// o4
 		sndChannel[i].mus_length = 48U;		// quarter note
-		sndChannel[i].mus_volume = 0xF0U;
-		sndChannel[i].mus_env = 3U;
+		sndChannel[i].mus_volume = 0xFF;
+		sndChannel[i].mus_adsr = 0xF0F0; // Attack, Decay, Sustain, Release. In order. 0-F
+		sndChannel[i].mus_curr_adsr = 0x0;
 		sndChannel[i].mus_rep_depth = 255U;
 		sndChannel[i].mus_slide = 0U;
 		sndChannel[i].mus_vib_speed = 0U;
@@ -198,7 +199,7 @@ void dirSndNoteOff(s8 channel) {
 		//sndChannel[channel].sampleData = 0;
 		// set up channel vars
 		//sndChannel[channel].samplePos = 0;
-		sndChannel[channel].sampleVol = 0;
+		sndChannel[channel].mus_curr_adsr = 0x0;
 }
 
 void dirSndNoteOn(s8 channel) {
@@ -210,10 +211,11 @@ void dirSndNoteOn(s8 channel) {
 		// Play at 2* frequency. This is one octave above normal
 		//int this = 3579546 / (sndChannel[channel].sampleLength * 428);//sndChannel[channel].output_freq);
 
-		sndChannel[channel].sampleInc = ((sampleBitRate << 12))/streamBitRate;//((sndChannel[channel].output_freq)<<12)/streamBitRate;
+		sndChannel[channel].sampleInc = (sndChannel[channel].mus_freq * sampleBitRate)/streamBitRate;//((sndChannel[channel].output_freq)<<12)/streamBitRate;
+//sampleBitRate *
 
 		// Same
-		sndChannel[channel].sampleVol = 64;
+		sndChannel[channel].mus_curr_adsr = 0xFF; // TODO: calculate adsr here
 
 		// Same
 		sndChannel[channel].sampleLength = 10516<<12;
@@ -225,7 +227,7 @@ void dirSndNoteOn(s8 channel) {
 		sndChannel[channel].sampleLoopLength = (10514-9176)<<12;
 
 		// Same
-		if (channel == 3)
+		if (channel == 1)
 			sndChannel[channel].sampleData = (s8*) bigKick;
 		else
 			sndChannel[channel].sampleData = (s8*) smpPiano;
@@ -891,6 +893,8 @@ void dirSndMusChannelsUpdate() {
 	for (i = 0U; i != SND_MAX_DS_CHANNELS; ++i) {
 		UBYTE note;
 		UWORD tmp_freq;
+
+		/*
 		if (sndChannel[i].mus_slide) {
 			if (sndChannel[i].mus_target > sndChannel[i].mus_freq) {
 				sndChannel[i].mus_freq += sndChannel[i].mus_slide;
@@ -924,12 +928,12 @@ void dirSndMusChannelsUpdate() {
 				//NR14_REG = tmp_freq >> 8;
 			}
 		}
-
+*/
 
 
 		if (sndChannel[i].mus_wait) {
 			sndChannel[i].mus_wait--;
-			if (sndChannel[i].mus_wait) return;
+			if (sndChannel[i].mus_wait) continue;
 		}
 
 		while (1U) {
@@ -937,10 +941,10 @@ void dirSndMusChannelsUpdate() {
 			if (note >= MUS_FIRST_NOTE) {
 				if (note & MUS_HAS_LENGTH) {
 					note ^= MUS_HAS_LENGTH;
-					sndChannel[i].mus_wait = *ds_mus_data[i]++;
+					sndChannel[i].mus_wait = *ds_mus_data[i]++;	// the sequence data has specified an actual note length. Wait for that long
 				}
 				else {
-					sndChannel[i].mus_wait = sndChannel[i].mus_length;
+					sndChannel[i].mus_wait = sndChannel[i].mus_length; // wait for lXX steps, where XX is defined in the mml (or l4 by default)
 				}
 				if (note == T_WAIT) {
 					return;
@@ -960,7 +964,8 @@ void dirSndMusChannelsUpdate() {
 					}
 
 					// Play the tone at the designated frequency
-					if (sndChannel[i].mus_enabled) dirSndNoteOn(i); //NR12_REG = sndChannel[i].mus_volume | sndChannel[i].mus_env; perhaps ADSR could be defined here too?
+					if (sndChannel[i].mus_enabled)
+						dirSndNoteOn(i); //NR12_REG = sndChannel[i].mus_volume | sndChannel[i].mus_env; perhaps ADSR could be defined here too?
 				}
 				if (sndChannel[i].mus_enabled) {
 					/*
@@ -992,7 +997,8 @@ void dirSndMusChannelsUpdate() {
 				sndChannel[i].mus_octave--;
 				break;
 			case T_VOL:
-				//sndChannel[i].mus_volume = ((*ds_mus_data[i]++) * (64)) / 16;//(DS_MAX_VOLUME + 1)) / 16;
+				//(u16)chnPtr->mus_volume * (u16)chnPtr->mus_curr_adsr
+				sndChannel[i].mus_volume = *ds_mus_data[i]++;
 				//if (sndChannel[i].mus_enabled) NR12_REG = sndChannel[i].mus_volume | sndChannel[i].mus_env; // Step the ADSR envelope here too
 				break;
 			case T_ENV:
@@ -1035,9 +1041,6 @@ void dirSndMusChannelsUpdate() {
 				else sndChannel[i].mus_vib_table = vib4;
 				sndChannel[i].mus_vib_delay = *ds_mus_data[i]++;
 				break;
-
-
-
 
 			case T_REP_START:
 				sndChannel[i].mus_rep_depth++;
