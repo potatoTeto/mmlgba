@@ -1,6 +1,7 @@
 #include "mmlgba.h"
 #include <string.h>
 #include <gba_console.h>
+#include <gba_timers.h>
 #include "music.h"
 #include "notes.h"
 #include "freq.h"
@@ -92,7 +93,7 @@ void mus_init(UBYTE* song_data) {
 
 	// Setup timer
 	//TAC_REG = 0x04U; // TAC clock = 4096 Hz
-	//TMA_REG = 255U - 51U; // Default to ~150 bpm*/
+	//REG_TM3CNT_L = 255U - 51U; // Default to ~150 bpm*/
 
 	// Setup data
 	mus_paused = 0U;
@@ -194,9 +195,10 @@ void mus_restore4() {
 void dirSndNoteOff(s8 channel) {
 		sndChannel[channel].mus_note_on = 0;
 		// Kill the sound (or initialize it)
-		sndChannel[channel].sampleData = 0;
+		//sndChannel[channel].sampleData = 0;
 		// set up channel vars
-		sndChannel[channel].samplePos = 0;
+		//sndChannel[channel].samplePos = 0;
+		sndChannel[channel].sampleVol = 0;
 }
 
 void dirSndNoteOn(s8 channel) {
@@ -240,7 +242,7 @@ void musicSequencerUpdate() {
 
 	dirSndMusChannelsUpdate();
 	gbPulse1Update();
-	gbPulse2Update();
+	//gbPulse2Update();
 	gbWaveUpdate();
 	gbNoiseUpdate();
 }
@@ -402,7 +404,7 @@ void gbPulse1Update() {
 			mus_po1 = *mus_data1++;
 			break;
 		case T_TEMPO:
-			TMA_REG = getTMAValue(*mus_data1++);
+			REG_TM3CNT_L = getTMAValue(*mus_data1++);
 			break;
 		case T_NOISE_STEP:
 			break;
@@ -579,7 +581,7 @@ void gbPulse2Update() {
 			mus_po2 = *mus_data2++;
 			break;
 		case T_TEMPO:
-			TMA_REG = getTMAValue(*mus_data2++);
+			REG_TM3CNT_L = getTMAValue(*mus_data2++);
 			break;
 		case T_NOISE_STEP:
 			break;
@@ -699,7 +701,7 @@ void gbWaveUpdate() {
 			mus_po3 = *mus_data3++;
 			break;
 		case T_TEMPO:
-			TMA_REG = getTMAValue(*mus_data3++);
+			REG_TM3CNT_L = getTMAValue(*mus_data3++);
 			break;
 		case T_NOISE_STEP:
 			break;
@@ -851,7 +853,7 @@ void gbNoiseUpdate() {
 		case T_PITCH_OFFSET:
 			break;
 		case T_TEMPO:
-			TMA_REG = getTMAValue(*mus_data4++);
+			REG_TM3CNT_L = getTMAValue(*mus_data4++);
 			break;
 		case T_NOISE_STEP:
 			mus_noise_step = (*mus_data4++) << 3;
@@ -1064,7 +1066,7 @@ void dirSndMusChannelsUpdate() {
 				sndChannel[i].mus_po = *ds_mus_data[i]++;
 				break;
 			case T_TEMPO:
-				TMA_REG = getTMAValue(*ds_mus_data[i]++);
+				REG_TM3CNT_L = getTMAValue(*ds_mus_data[i]++);
 				break;
 			case T_NOISE_STEP:
 				break;

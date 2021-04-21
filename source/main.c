@@ -20,7 +20,7 @@
 #include "data/samples/smpPiano.h"
 
 
-s32 i, keys_pressed, keys_released;
+s32 i, keys_pressed, keys_released, initial_bpm;
 char strMsg[] = "xxxxxx";
 
 // Function called when timer 0 overflows
@@ -59,8 +59,8 @@ void musicUpdate(void) {
 //---------------------------------------------------------------------------------
 int main(void) {
 	//---------------------------------------------------------------------------------
-
-	REG_TM3CNT_L = -193; // ~106bpm starting value
+	initial_bpm = 120;
+	REG_TM3CNT_L = 0xFFFF - (UWORD)initial_bpm;//-193; // ~106bpm starting value
 	REG_TM3CNT_H = 0x3 | TIMER_IRQ | TIMER_START; // 16384 hz | use IRQ | On
 
 	mus_init((UBYTE*)&test_data);
@@ -172,8 +172,8 @@ int main(void) {
 			else
 				strMsg[i] = 'x';
 		}
-		iprintf("\x1b[0;0H mmlgba Sound Test v1.0\n   by potatoTeto\n\n\n github.com/potatoTeto/mmlgba\n\n\n\n\n                   %s\n%x", strMsg,sndChannel[0].output_freq);
-
+		//iprintf("\x1b[0;0H mmlgba Sound Test v1.0\n   by potatoTeto\n\n\n github.com/potatoTeto/mmlgba\n\n\n\n\n                   %s\n%x", strMsg,sndChannel[0].output_freq);
+		//iprintf("\x1b[0;0H%x",sizeof(u16));
 		StepDirectSound();
 	}
 }
