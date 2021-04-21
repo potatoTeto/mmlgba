@@ -172,8 +172,8 @@ int main(void) {
 			else
 				strMsg[i] = 'x';
 		}
-		//iprintf("\x1b[0;0H mmlgba Sound Test v1.0\n   by potatoTeto\n\n\n github.com/potatoTeto/mmlgba\n\n\n\n\n                   %s\n%x", strMsg,sndChannel[0].output_freq);
-		//iprintf("\x1b[0;0H%x",sizeof(u16));
+		iprintf("\x1b[0;0H mmlgba Sound Test v1.0\n   by potatoTeto\n\n\n github.com/potatoTeto/mmlgba\n\n\n\n\n                   %s\n%x", strMsg,sndChannel[0].output_freq);
+//iprintf("\x1b[0;0H%x",sizeof(u16));
 		StepDirectSound();
 	}
 }
